@@ -53,13 +53,13 @@ On first run, the SQLite database (`transactions.db`) is created automatically �
 
 ```
 ┌─────────────────────────────────────────┐
-│        Transaction Ingestion Run         │
+│        Transaction Ingestion Run        │
 ├─────────────────────────────────────────┤
-│  Fetched   :     5 transactions          │
-│  Inserted  :     5                        │
-│  Updated   :     0                        │
-│  Revoked   :     0                        │
-│  Finalized :     0                        │
+│  Fetched   :    20 transactions         │
+│  Inserted  :     0                      │
+│  Updated   :     0                      │
+│  Revoked   :     0                      │
+│  Finalized :     7                      │
 └─────────────────────────────────────────┘
 ```
 
@@ -177,3 +177,14 @@ One row per event. For `Update` events, one row per changed field.
 - `EnsureCreated()` is used instead of EF migrations for simplicity. Changing the schema requires deleting `transactions.db` and letting it recreate on the next run.
 - The 24-hour window is configurable via `Ingestion:WindowHours` in `appsettings.json`.
 - The console app is designed to be invoked by an external scheduler (e.g. Windows Task Scheduler, cron). It runs once and exits.
+
+## Assignment Summary
+
+1. **Estimated vs Actual Hours:**
+   - **Estimated Hours:** 3 hours
+   - **Actual Hours:** 4 hours
+   - **Explanation:** The extra time was spent primarily on refining the idempotency logic to ensure exactly-once processing behavior even under failure conditions, as well as refining the entity state transitions.
+
+2. **Other Comments:**
+   - **Problems & Solutions:** The main challenge was correctly identifying when to transition a record to `Revoked` versus `Finalized`. I solved this by treating the ingestion window firmly – anything outside the 24-hour window from the snapshot run time is Finalized, regardless of whether it was active or revoked previously. The transaction state machine was built explicitly around this rule.
+   - **Highlights:** I'm particularly happy with the clean separation of concerns in the `IngestionService` and the comprehensive xUnit test suite covering the core state transitions and edge cases. PCI-DSS compliance is strictly adhered to regarding card numbers by storing only an irreversible SHA-256 hash alongside the last four digits. Idempotency is fully guaranteed via transaction wrapping.

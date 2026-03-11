@@ -21,8 +21,9 @@ public sealed class IngestionServiceTests : IAsyncDisposable
 
     // Fixed timestamp used in all test DTOs — prevents spurious TransactionTime diffs
     // between consecutive runs and keeps idempotency/update tests reliable.
+    // Adjusted dynamically to stay within the 24-hour ingestion window without millisecond precision issues.
     private static readonly DateTime FixedTransactionTime =
-        new(2026, 3, 10, 8, 0, 0, DateTimeKind.Utc);
+        new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day, DateTime.UtcNow.Hour, 0, 0, DateTimeKind.Utc).AddHours(-12);
 
     // Each test instance gets its own DB file — no shared state across tests.
     public IngestionServiceTests()

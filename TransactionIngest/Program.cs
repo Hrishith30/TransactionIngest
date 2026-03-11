@@ -60,13 +60,13 @@ using (var scope = serviceProvider.CreateScope())
 
         Console.WriteLine();
         Console.WriteLine("┌─────────────────────────────────────────┐");
-        Console.WriteLine("│        Transaction Ingestion Run         │");
+        Console.WriteLine("│        Transaction Ingestion Run        │");
         Console.WriteLine("├─────────────────────────────────────────┤");
-        Console.WriteLine($"│  Fetched   : {result.Fetched,5} transactions          │");
-        Console.WriteLine($"│  Inserted  : {result.Inserted,5}                        │");
-        Console.WriteLine($"│  Updated   : {result.Updated,5}                        │");
-        Console.WriteLine($"│  Revoked   : {result.Revoked,5}                        │");
-        Console.WriteLine($"│  Finalized : {result.Finalized,5}                        │");
+        Console.WriteLine($"│  Fetched   : {result.Fetched,5} transactions         │");
+        Console.WriteLine($"│  Inserted  : {result.Inserted,5}                      │");
+        Console.WriteLine($"│  Updated   : {result.Updated,5}                      │");
+        Console.WriteLine($"│  Revoked   : {result.Revoked,5}                      │");
+        Console.WriteLine($"│  Finalized : {result.Finalized,5}                      │");
         Console.WriteLine("└─────────────────────────────────────────┘");
         Console.WriteLine();
     }
