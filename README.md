@@ -61,6 +61,8 @@ On first run, the SQLite database (`transactions.db`) is created automatically �
 │  Revoked   :     0                      │
 │  Finalized :     7                      │
 └─────────────────────────────────────────┘
+
+Due to change in date of mock_feed.json file, the output is different from the expected output.
 ```
 
 Run it again with the same data and all counts show `0` — that's idempotency working correctly.
