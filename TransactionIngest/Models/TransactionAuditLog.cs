@@ -18,8 +18,7 @@ public sealed class TransactionAuditLog
     /// parent transaction row is later purged.
     /// </summary>
     [Required]
-    [MaxLength(50)]
-    public string TransactionId { get; set; } = string.Empty;
+    public int TransactionId { get; set; }
 
     /// <summary>UTC timestamp of the ingestion run that produced this entry.</summary>
     public DateTime ChangedAt { get; set; }

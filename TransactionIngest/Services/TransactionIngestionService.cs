@@ -40,6 +40,15 @@ public sealed class TransactionIngestionService
         _windowHours = int.TryParse(configuration["Ingestion:WindowHours"], out var h) ? h : 24;
     }
 
+    private static int ParseTransactionId(string id)
+    {
+        // Strip non-digit characters (e.g., "T-1001" -> "1001")
+        var digitsMatch = System.Text.RegularExpressions.Regex.Match(id, @"\d+");
+        return digitsMatch.Success && int.TryParse(digitsMatch.Value, out var parsed) 
+            ? parsed 
+            : throw new FormatException($"Invalid TransactionId format: {id}");
+    }
+
     /// <summary>
     /// Runs the full ingestion pipeline. Throws on failure (after rolling back).
     /// </summary>
@@ -51,8 +60,8 @@ public sealed class TransactionIngestionService
         var snapshot = await _apiClient.FetchLast24HoursAsync(ct);
         _logger.LogInformation("Fetched {Count} transactions from the 24-hour snapshot.", snapshot.Count);
 
-        // Dictionary for O(1) membership checks during revocation.
-        var snapshotById = snapshot.ToDictionary(dto => dto.TransactionId, StringComparer.Ordinal);
+        // Dictionary for O(1) membership checks during revocation. Map by parsed integer ID.
+        var snapshotById = snapshot.ToDictionary(dto => ParseTransactionId(dto.TransactionId));
 
         var windowStart = DateTime.UtcNow.AddHours(-_windowHours);
         var runAt       = DateTime.UtcNow;
@@ -68,13 +77,15 @@ public sealed class TransactionIngestionService
             // Step 2 — Upsert.
             foreach (var dto in snapshot)
             {
+                var parsedId = ParseTransactionId(dto.TransactionId);
+
                 var existing = await _db.Transactions
-                    .FirstOrDefaultAsync(t => t.TransactionId == dto.TransactionId, ct);
+                    .FirstOrDefaultAsync(t => t.TransactionId == parsedId, ct);
 
                 if (existing is null)
                 {
                     // New transaction — insert it.
-                    var newTx = MapToEntity(dto, runAt);
+                    var newTx = MapToEntity(dto, runAt, parsedId);
                     _db.Transactions.Add(newTx);
                     await _db.SaveChangesAsync(ct); // Need the generated Id before writing the audit row.
 
@@ -164,10 +175,10 @@ public sealed class TransactionIngestionService
     /// Maps a DTO to a new Transaction entity.
     /// The full card number is hashed here and never stored in plaintext.
     /// </summary>
-    private static Transaction MapToEntity(TransactionDto dto, DateTime runAt) =>
+    private static Transaction MapToEntity(TransactionDto dto, DateTime runAt, int parsedId) =>
         new()
         {
-            TransactionId   = dto.TransactionId,
+            TransactionId   = parsedId,
             CardNumberHash  = HashCard(dto.CardNumber),
             CardLast4       = dto.CardNumber.Length >= 4 ? dto.CardNumber[^4..] : dto.CardNumber,
             LocationCode    = dto.LocationCode,

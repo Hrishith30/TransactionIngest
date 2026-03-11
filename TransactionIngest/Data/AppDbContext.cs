@@ -33,7 +33,7 @@ public sealed class AppDbContext : DbContext
                   .IsUnique()
                   .HasDatabaseName("IX_Transactions_TransactionId");
 
-            entity.Property(t => t.TransactionId).HasMaxLength(50).IsRequired();
+            entity.Property(t => t.TransactionId).IsRequired();
             entity.Property(t => t.CardNumberHash).HasMaxLength(64).IsRequired();
             entity.Property(t => t.CardLast4).HasMaxLength(4).IsRequired();
             entity.Property(t => t.LocationCode).HasMaxLength(20).IsRequired();
@@ -51,7 +51,7 @@ public sealed class AppDbContext : DbContext
         {
             entity.HasKey(al => al.Id);
 
-            entity.Property(al => al.TransactionId).HasMaxLength(50).IsRequired();
+            entity.Property(al => al.TransactionId).IsRequired();
             entity.Property(al => al.FieldName).HasMaxLength(50);
             entity.Property(al => al.OldValue).HasMaxLength(256);
             entity.Property(al => al.NewValue).HasMaxLength(256);

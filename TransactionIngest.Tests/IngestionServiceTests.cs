@@ -116,7 +116,7 @@ public sealed class IngestionServiceTests : IAsyncDisposable
     [Fact]
     public async Task UpdatedField_IsDetected_AndAuditRowRecorded()
     {
-        // Arrange: first run inserts T-1001 with Amount = 10.00.
+        // Arrange: first run inserts 1001 with Amount = 10.00.
         var firstSnapshot = new List<TransactionDto> { MakeDto("T-1001") };
         var firstService  = CreateService(new StubApiClient(firstSnapshot));
         await firstService.ExecuteAsync();
@@ -137,7 +137,7 @@ public sealed class IngestionServiceTests : IAsyncDisposable
         Assert.Equal(1, result.Updated);
 
         // Assert DB record reflects new amount.
-        var tx = await _db.Transactions.SingleAsync(t => t.TransactionId == "T-1001");
+        var tx = await _db.Transactions.SingleAsync(t => t.TransactionId == 1001);
         Assert.Equal(99.99m, tx.Amount);
 
         // Assert exactly one Update audit row for the Amount field.
@@ -155,7 +155,7 @@ public sealed class IngestionServiceTests : IAsyncDisposable
     [Fact]
     public async Task AbsentTransaction_WithinWindow_IsRevoked()
     {
-        // Arrange: first run inserts T-1001 and T-1002.
+        // Arrange: first run inserts 1001 and 1002.
         var firstSnapshot = new List<TransactionDto>
         {
             MakeDto("T-1001"),
@@ -163,7 +163,7 @@ public sealed class IngestionServiceTests : IAsyncDisposable
         };
         await CreateService(new StubApiClient(firstSnapshot)).ExecuteAsync();
 
-        // Second run: snapshot contains only T-1001 → T-1002 should be revoked.
+        // Second run: snapshot contains only 1001 → 1002 should be revoked.
         var secondSnapshot = new List<TransactionDto> { MakeDto("T-1001") };
 
         // Act
@@ -172,11 +172,11 @@ public sealed class IngestionServiceTests : IAsyncDisposable
         // Assert
         Assert.Equal(1, result.Revoked);
 
-        var revokedTx = await _db.Transactions.SingleAsync(t => t.TransactionId == "T-1002");
+        var revokedTx = await _db.Transactions.SingleAsync(t => t.TransactionId == 1002);
         Assert.Equal(TransactionStatus.Revoked, revokedTx.Status);
 
         var revokedLog = await _db.AuditLogs
-            .Where(a => a.TransactionId == "T-1002" && a.ChangeType == ChangeType.Revoked)
+            .Where(a => a.TransactionId == 1002 && a.ChangeType == ChangeType.Revoked)
             .ToListAsync();
         Assert.Single(revokedLog);
     }
@@ -216,7 +216,7 @@ public sealed class IngestionServiceTests : IAsyncDisposable
         // Arrange: directly insert a record whose TransactionTime is outside the window.
         var oldTx = new Transaction
         {
-            TransactionId   = "T-OLD",
+            TransactionId   = 9999,
             CardNumberHash  = "aaaa",
             CardLast4       = "1111",
             LocationCode    = "STO-01",
@@ -230,10 +230,10 @@ public sealed class IngestionServiceTests : IAsyncDisposable
         _db.Transactions.Add(oldTx);
         await _db.SaveChangesAsync();
 
-        // Snapshot includes T-OLD with a different Amount — should be ignored.
+        // Snapshot includes 9999 with a different Amount — should be ignored.
         var snapshot = new List<TransactionDto>
         {
-            MakeDto("T-OLD", dto =>
+            MakeDto("T-9999", dto =>
             {
                 dto.Amount    = 999.99m; // Changed amount — should be rejected.
                 dto.Timestamp = DateTime.UtcNow.AddHours(-30);
@@ -248,7 +248,7 @@ public sealed class IngestionServiceTests : IAsyncDisposable
         Assert.Equal(0, result.Updated);
 
         // Database record should remain unchanged.
-        var dbTx = await _db.Transactions.SingleAsync(t => t.TransactionId == "T-OLD");
+        var dbTx = await _db.Transactions.SingleAsync(t => t.TransactionId == 9999);
         Assert.Equal(5.00m,                    dbTx.Amount);
         Assert.Equal(TransactionStatus.Finalized, dbTx.Status);
     }
@@ -260,7 +260,7 @@ public sealed class IngestionServiceTests : IAsyncDisposable
         // Arrange: insert an Active record with a TransactionTime beyond the window.
         var oldTx = new Transaction
         {
-            TransactionId   = "T-STALE",
+            TransactionId   = 8888,
             CardNumberHash  = "bbbb",
             CardLast4       = "2222",
             LocationCode    = "STO-02",
@@ -274,17 +274,17 @@ public sealed class IngestionServiceTests : IAsyncDisposable
         _db.Transactions.Add(oldTx);
         await _db.SaveChangesAsync();
 
-        // The snapshot is empty — T-STALE is not in it.
+        // The snapshot is empty — 8888 is not in it.
         var result = await CreateService(new StubApiClient([])).ExecuteAsync();
 
         // Assert
         Assert.Equal(1, result.Finalized);
 
-        var dbTx = await _db.Transactions.SingleAsync(t => t.TransactionId == "T-STALE");
+        var dbTx = await _db.Transactions.SingleAsync(t => t.TransactionId == 8888);
         Assert.Equal(TransactionStatus.Finalized, dbTx.Status);
 
         var finalizedLog = await _db.AuditLogs
-            .Where(a => a.TransactionId == "T-STALE" && a.ChangeType == ChangeType.Finalized)
+            .Where(a => a.TransactionId == 8888 && a.ChangeType == ChangeType.Finalized)
             .ToListAsync();
         Assert.Single(finalizedLog);
     }

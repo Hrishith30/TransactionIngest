@@ -18,8 +18,7 @@ public sealed class Transaction
     /// Stable across re-deliveries; used as the upsert key.
     /// </summary>
     [Required]
-    [MaxLength(50)]
-    public string TransactionId { get; set; } = string.Empty;
+    public int TransactionId { get; set; }
 
     /// <summary>
     /// SHA-256 hash of the raw card number.
