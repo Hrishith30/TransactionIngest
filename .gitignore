@@ -1,0 +1,9 @@
+# .gitignore for .NET projects
+bin/
+obj/
+*.db
+*.db-shm
+*.db-wal
+.vs/
+*.user
+.env

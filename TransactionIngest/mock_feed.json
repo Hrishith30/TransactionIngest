@@ -1,0 +1,162 @@
+[
+  {
+    "transactionId": "T-2001",
+    "cardNumber": "4532111122223333",
+    "locationCode": "NYC-01",
+    "productName": "Standing Desk",
+    "amount": 450.00,
+    "timestamp": "2026-03-10T17:30:00Z"
+  },
+  {
+    "transactionId": "T-2002",
+    "cardNumber": "4532111122224444",
+    "locationCode": "NYC-01",
+    "productName": "Ergonomic Chair",
+    "amount": 320.50,
+    "timestamp": "2026-03-10T14:45:00Z"
+  },
+  {
+    "transactionId": "T-2003",
+    "cardNumber": "5412888877776666",
+    "locationCode": "LON-02",
+    "productName": "Coffee Machine",
+    "amount": 129.99,
+    "timestamp": "2026-03-10T08:20:00Z"
+  },
+  {
+    "transactionId": "T-2004",
+    "cardNumber": "5412888877774444",
+    "locationCode": "LON-02",
+    "productName": "Milk Frother",
+    "amount": 25.00,
+    "timestamp": "2026-03-09T22:10:00Z"
+  },
+  {
+    "transactionId": "T-2005",
+    "cardNumber": "371234567890123",
+    "locationCode": "SFO-03",
+    "productName": "Noise Cancelling Buds",
+    "amount": 199.00,
+    "timestamp": "2026-03-09T17:55:00Z"
+  },
+  {
+    "transactionId": "T-2006",
+    "cardNumber": "6011999988887777",
+    "locationCode": "TKY-04",
+    "productName": "Rice Cooker",
+    "amount": 85.00,
+    "timestamp": "2026-03-01T09:00:00Z"
+  },
+  {
+    "transactionId": "T-2007",
+    "cardNumber": "4111222233334444",
+    "locationCode": "BER-05",
+    "productName": "Tool Kit",
+    "amount": 65.00,
+    "timestamp": "2026-03-02T10:15:00Z"
+  },
+  {
+    "transactionId": "T-2008",
+    "cardNumber": "5500111122223333",
+    "locationCode": "NYC-01",
+    "productName": "Monitor Arm",
+    "amount": 45.99,
+    "timestamp": "2026-03-10T11:00:00Z"
+  },
+  {
+    "transactionId": "T-2009",
+    "cardNumber": "4000333344445555",
+    "locationCode": "LON-02",
+    "productName": "Yoga Mat",
+    "amount": 29.50,
+    "timestamp": "2026-03-03T14:30:00Z"
+  },
+  {
+    "transactionId": "T-2010",
+    "cardNumber": "341111112222333",
+    "locationCode": "SFO-03",
+    "productName": "Smart Bottle",
+    "amount": 55.00,
+    "timestamp": "2026-03-10T05:00:00Z"
+  },
+  {
+    "transactionId": "T-2011",
+    "cardNumber": "4222555566667777",
+    "locationCode": "TKY-04",
+    "productName": "Steam Deck",
+    "amount": 399.00,
+    "timestamp": "2026-03-04T16:45:00Z"
+  },
+  {
+    "transactionId": "T-2012",
+    "cardNumber": "4333666677778888",
+    "locationCode": "BER-05",
+    "productName": "Hiking Boots",
+    "amount": 120.00,
+    "timestamp": "2026-03-05T08:20:00Z"
+  },
+  {
+    "transactionId": "T-2013",
+    "cardNumber": "4444777788889999",
+    "locationCode": "NYC-01",
+    "productName": "Electric Kettle",
+    "amount": 35.00,
+    "timestamp": "2026-03-10T16:00:00Z"
+  },
+  {
+    "transactionId": "T-2014",
+    "cardNumber": "4555888899990000",
+    "locationCode": "LON-02",
+    "productName": "Canvas Print",
+    "amount": 42.00,
+    "timestamp": "2026-03-06T12:00:00Z"
+  },
+  {
+    "transactionId": "T-2015",
+    "cardNumber": "4666999900001111",
+    "locationCode": "SFO-03",
+    "productName": "Desk Lamp",
+    "amount": 22.50,
+    "timestamp": "2026-03-10T15:20:00Z"
+  },
+  {
+    "transactionId": "T-2016",
+    "cardNumber": "4777000011112222",
+    "locationCode": "TKY-04",
+    "productName": "Kindle Scribe",
+    "amount": 339.00,
+    "timestamp": "2026-03-07T10:30:00Z"
+  },
+  {
+    "transactionId": "T-2017",
+    "cardNumber": "4888111122223333",
+    "locationCode": "BER-05",
+    "productName": "Backpack",
+    "amount": 89.00,
+    "timestamp": "2026-03-08T19:00:00Z"
+  },
+  {
+    "transactionId": "T-2018",
+    "cardNumber": "4999222233334444",
+    "locationCode": "NYC-01",
+    "productName": "USB Mic",
+    "amount": 115.00,
+    "timestamp": "2026-03-10T02:15:00Z"
+  },
+  {
+    "transactionId": "T-2019",
+    "cardNumber": "5111333344445555",
+    "locationCode": "LON-02",
+    "productName": "AeroPress",
+    "amount": 39.99,
+    "timestamp": "2026-03-09T20:50:00Z"
+  },
+  {
+    "transactionId": "T-2020",
+    "cardNumber": "5222444455556666",
+    "locationCode": "SFO-03",
+    "productName": "Magsafe Charger",
+    "amount": 39.00,
+    "timestamp": "2026-03-10T12:45:00Z"
+  }
+]

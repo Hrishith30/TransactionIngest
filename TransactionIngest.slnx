@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="TransactionIngest.Tests/TransactionIngest.Tests.csproj" />
+  <Project Path="TransactionIngest/TransactionIngest.csproj" />
+</Solution>
