@@ -143,6 +143,22 @@ If the run fails at any point, the entire transaction rolls back and can be safe
 
 ---
 
+## Status Combinations
+
+While most transactions trigger a single status, some can trigger multiple states in one run as they move through the pipeline phases:
+
+| Scenario | Trigger | Count Category | Flow |
+|---|---|---|---|
+| **New & Current** | Brand new ID, date within 24h. | **Inserted** | Inserted as Active |
+| **New & Old** | Brand new ID, date already > 24h. | **Inserted + Finalized** | Inserted as Active → Finalized |
+| **Change & Current** | Existing ID changed, date within 24h. | **Updated** | Updated (Active) |
+| **Change & Old** | Existing ID changed, date now > 24h. | **Updated + Finalized** | Updated (Active) → Finalized |
+| **Missing & Current**| ID absent from feed, date within 24h. | **Revoked** | Active → Revoked |
+| **Aging Out** | Record (Active or Revoked) crosses 24h mark. | **Finalized** | Active/Revoked → Finalized |
+
+---
+---
+
 ## Data Model
 
 ### Transactions table
