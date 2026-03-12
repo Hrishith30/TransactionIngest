@@ -2,16 +2,13 @@ using System.Text.Json.Serialization;
 
 namespace TransactionIngest.Services;
 
-/// <summary>
-/// Mirrors the JSON shape returned by the upstream transactions API.
-/// Property names match the camelCase API contract exactly.
-/// </summary>
+/// <summary>Data transfer object for API responses.</summary>
 public sealed class TransactionDto
 {
     [JsonPropertyName("transactionId")]
     public string TransactionId { get; set; } = string.Empty;
 
-    /// <summary>Full PAN as returned by the API. Never written to the database.</summary>
+    /// <summary>Full PAN (hashed before storage).</summary>
     [JsonPropertyName("cardNumber")]
     public string CardNumber { get; set; } = string.Empty;
 
@@ -24,7 +21,7 @@ public sealed class TransactionDto
     [JsonPropertyName("amount")]
     public decimal Amount { get; set; }
 
-    /// <summary>When the transaction occurred at the POS (UTC).</summary>
+    /// <summary>Transaction time (UTC).</summary>
     [JsonPropertyName("timestamp")]
     public DateTime Timestamp { get; set; }
 }

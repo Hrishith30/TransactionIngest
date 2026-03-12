@@ -9,14 +9,12 @@ using TransactionIngest.Models;
 namespace TransactionIngest.Services;
 
 /// <summary>
-/// Runs the hourly ingestion pipeline. Each call to <see cref="ExecuteAsync"/> does:
-///   1. Fetch the 24-hour snapshot from the API client.
-///   2. Upsert each record by TransactionId — insert new ones, update changed ones.
-///   3. Revoke any Active record that is missing from the snapshot but still within the window.
-///   4. Finalize any record whose TransactionTime is older than the window.
-///
-/// Everything from step 2 onward runs inside a single database transaction,
-/// so a failed run rolls back cleanly and can be retried safely.
+/// Hourly ingestion pipeline:
+///   1. Fetch the 24-hour snapshot.
+///   2. Upsert records (insert new, update changed).
+///   3. Revoke active records missing from the snapshot.
+///   4. Finalize records older than the window.
+/// Runs in a single transaction for safety.
 /// </summary>
 public sealed class TransactionIngestionService
 {
@@ -25,7 +23,7 @@ public sealed class TransactionIngestionService
     private readonly ILogger<TransactionIngestionService> _logger;
     private readonly int _windowHours;
 
-    /// <summary>Summary counts returned after each run — used for logging and test assertions.</summary>
+    /// <summary>Counts from the ingestion run.</summary>
     public sealed record IngestionResult(int Fetched, int Inserted, int Updated, int Revoked, int Finalized);
 
     public TransactionIngestionService(
@@ -42,25 +40,23 @@ public sealed class TransactionIngestionService
 
     private static int ParseTransactionId(string id)
     {
-        // Strip non-digit characters (e.g., "T-1001" -> "1001")
+        // Pull numeric ID from string (e.g., "T-1001" -> 1001)
         var digitsMatch = System.Text.RegularExpressions.Regex.Match(id, @"\d+");
         return digitsMatch.Success && int.TryParse(digitsMatch.Value, out var parsed) 
             ? parsed 
             : throw new FormatException($"Invalid TransactionId format: {id}");
     }
 
-    /// <summary>
-    /// Runs the full ingestion pipeline. Throws on failure (after rolling back).
-    /// </summary>
+    /// <summary>Main entry point for the ingestion run.</summary>
     public async Task<IngestionResult> ExecuteAsync(CancellationToken ct = default)
     {
         _logger.LogInformation("=== Ingestion run started at {RunTime} UTC ===", DateTime.UtcNow);
 
-        // Fetch outside the DB transaction — this is a read-only API call.
+        // Call the API (read-only, no DB lock yet)
         var snapshot = await _apiClient.FetchLast24HoursAsync(ct);
         _logger.LogInformation("Fetched {Count} transactions from the 24-hour snapshot.", snapshot.Count);
 
-        // Dictionary for O(1) membership checks during revocation. Map by parsed integer ID.
+        // Quick lookup by ID for revocation checks later.
         var snapshotById = snapshot.ToDictionary(dto => ParseTransactionId(dto.TransactionId));
 
         var windowStart = DateTime.UtcNow.AddHours(-_windowHours);
@@ -74,7 +70,7 @@ public sealed class TransactionIngestionService
         await using var dbTransaction = await _db.Database.BeginTransactionAsync(ct);
         try
         {
-            // Step 2 — Upsert.
+            // Upsert phase.
             foreach (var dto in snapshot)
             {
                 var parsedId = ParseTransactionId(dto.TransactionId);
@@ -87,7 +83,7 @@ public sealed class TransactionIngestionService
                     // New transaction — insert it.
                     var newTx = MapToEntity(dto, runAt, parsedId);
                     _db.Transactions.Add(newTx);
-                    await _db.SaveChangesAsync(ct); // Need the generated Id before writing the audit row.
+                    await _db.SaveChangesAsync(ct); // Get the ID for the audit log.
 
                     _db.AuditLogs.Add(BuildAuditEntry(newTx, ChangeType.Insert, runAt));
                     await _db.SaveChangesAsync(ct);
@@ -97,12 +93,12 @@ public sealed class TransactionIngestionService
                 }
                 else if (existing.Status == TransactionStatus.Finalized)
                 {
-                    // Finalized records are sealed — skip without touching them.
+                    // Already finalized, leave it alone.
                     _logger.LogDebug("Skipping finalized {TxId}.", dto.TransactionId);
                 }
                 else
                 {
-                    // Existing and still active — check for field-level changes.
+                    // Check for changes on active records.
                     var diffs = DetectChanges(existing, dto);
                     if (diffs.Count > 0)
                     {
@@ -121,7 +117,7 @@ public sealed class TransactionIngestionService
                 }
             }
 
-            // Step 3 — Revoke records that were in the window but are missing from this snapshot.
+            // Revocation phase.
             var toRevoke = await _db.Transactions
                 .Where(t => t.Status == TransactionStatus.Active && t.TransactionTime >= windowStart)
                 .ToListAsync(ct);
@@ -136,7 +132,7 @@ public sealed class TransactionIngestionService
             }
             await _db.SaveChangesAsync(ct);
 
-            // Step 4 — Finalize anything older than the window.
+            // Finalization phase.
             var toFinalize = await _db.Transactions
                 .Where(t => (t.Status == TransactionStatus.Active || t.Status == TransactionStatus.Revoked)
                          && t.TransactionTime < windowStart)
@@ -171,10 +167,7 @@ public sealed class TransactionIngestionService
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Maps a DTO to a new Transaction entity.
-    /// The full card number is hashed here and never stored in plaintext.
-    /// </summary>
+    /// <summary>Map DTO to entity and hash the card number.</summary>
     private static Transaction MapToEntity(TransactionDto dto, DateTime runAt, int parsedId) =>
         new()
         {
@@ -190,18 +183,14 @@ public sealed class TransactionIngestionService
             UpdatedAt       = runAt
         };
 
-    /// <summary>SHA-256 hex digest of a card number string.</summary>
+    /// <summary>SHA-256 hash for card numbers.</summary>
     private static string HashCard(string cardNumber)
     {
         var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(cardNumber));
         return Convert.ToHexString(bytes).ToLowerInvariant();
     }
 
-    /// <summary>
-    /// Compares tracked fields between what is stored and what the API returned.
-    /// Returns one tuple per changed field: (FieldName, OldValue, NewValue).
-    /// Card numbers are compared via their hash to avoid touching the raw PAN.
-    /// </summary>
+    /// <summary>Identify which fields have changed.</summary>
     private static List<(string Field, string OldValue, string NewValue)> DetectChanges(
         Transaction existing, TransactionDto dto)
     {
@@ -228,11 +217,7 @@ public sealed class TransactionIngestionService
         return diffs;
     }
 
-    /// <summary>
-    /// Writes the new field values onto the existing entity.
-    /// EF Core change tracking will persist these on the next SaveChangesAsync.
-    /// Also reactivates a previously revoked record if it reappears in a snapshot.
-    /// </summary>
+    /// <summary>Apply new values and reactivate if needed.</summary>
     private static void ApplyChanges(Transaction existing, TransactionDto dto, DateTime runAt)
     {
         existing.CardNumberHash  = HashCard(dto.CardNumber);
@@ -245,7 +230,7 @@ public sealed class TransactionIngestionService
         existing.UpdatedAt       = runAt;
     }
 
-    /// <summary>Builds an audit entry for a lifecycle change (Insert / Revoked / Finalized).</summary>
+    /// <summary>Audit entry for life-cycle changes.</summary>
     private static TransactionAuditLog BuildAuditEntry(Transaction tx, ChangeType type, DateTime runAt) =>
         new()
         {
@@ -253,10 +238,10 @@ public sealed class TransactionIngestionService
             TransactionFk = tx.Id,
             ChangedAt     = runAt,
             ChangeType    = type
-            // FieldName / OldValue / NewValue intentionally left null for lifecycle events.
+            // These fields stay null for lifecycle events.
         };
 
-    /// <summary>Builds an audit entry for a single field-level Update.</summary>
+    /// <summary>Audit entry for field updates.</summary>
     private static TransactionAuditLog BuildUpdateEntry(
         Transaction tx, string field, string oldVal, string newVal, DateTime runAt) =>
         new()

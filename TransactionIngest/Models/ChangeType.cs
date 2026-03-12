@@ -1,17 +1,17 @@
 namespace TransactionIngest.Models;
 
-/// <summary>The type of change recorded in an audit log entry.</summary>
+/// <summary>Types of changes we track in the audit log.</summary>
 public enum ChangeType
 {
-    /// <summary>A new transaction was seen for the first time.</summary>
+    /// <summary>New transaction added.</summary>
     Insert = 0,
 
-    /// <summary>An existing transaction had one or more fields change.</summary>
+    /// <summary>Updated an existing transaction's fields.</summary>
     Update = 1,
 
-    /// <summary>A transaction disappeared from the snapshot while still within the 24-hour window.</summary>
+    /// <summary>Transaction was revoked from the feed.</summary>
     Revoked = 2,
 
-    /// <summary>A transaction aged out past 24 hours and was sealed permanently.</summary>
+    /// <summary>Transaction aged out and was finalized.</summary>
     Finalized = 3
 }

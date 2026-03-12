@@ -4,10 +4,7 @@ using Microsoft.Extensions.Logging;
 
 namespace TransactionIngest.Services;
 
-/// <summary>
-/// Reads the transaction snapshot from a local JSON file instead of calling the real API.
-/// Used for local development and testing. Set MockFeed:Enabled = true in appsettings.json.
-/// </summary>
+/// <summary>Fake API client that reads from a local JSON file.</summary>
 public sealed class MockTransactionApiClient : ITransactionApiClient
 {
     private readonly string _feedFilePath;
@@ -24,8 +21,7 @@ public sealed class MockTransactionApiClient : ITransactionApiClient
 
         var configuredPath = configuration["MockFeed:FilePath"] ?? "mock_feed.json";
 
-        // Resolve relative to the executable folder so the path works regardless of
-        // which directory "dotnet run" is called from.
+        // Resolve path relative to the app base.
         _feedFilePath = Path.IsPathRooted(configuredPath)
             ? configuredPath
             : Path.Combine(AppContext.BaseDirectory, configuredPath);
@@ -36,7 +32,7 @@ public sealed class MockTransactionApiClient : ITransactionApiClient
     {
         if (!File.Exists(_feedFilePath))
         {
-            // No silent fallback — missing file should be obvious immediately.
+            // Fail fast if the file is missing.
             throw new FileNotFoundException(
                 $"Mock feed not found at '{_feedFilePath}'. " +
                 "Check that mock_feed.json is in the project and MockFeed:FilePath is correct.",

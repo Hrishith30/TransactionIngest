@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 using TransactionIngest.Data;
 using TransactionIngest.Services;
 
-// Load appsettings.json — all settings have safe defaults so the file is optional.
+// Load appsettings.json.
 IConfiguration configuration = new ConfigurationBuilder()
     .SetBasePath(AppContext.BaseDirectory)
     .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
@@ -25,8 +25,7 @@ services.AddSingleton(configuration);
 var connectionString = configuration.GetConnectionString("Default") ?? "Data Source=transactions.db";
 services.AddDbContext<AppDbContext>(opts => opts.UseSqlite(connectionString));
 
-// Use the mock file-based client locally; switch to the real HTTP client in production
-// by setting MockFeed:Enabled = false in appsettings.json.
+// Choose between mock or real API client.
 bool useMock = bool.TryParse(configuration["MockFeed:Enabled"], out var m) && m;
 if (useMock)
 {
@@ -41,14 +40,14 @@ services.AddScoped<TransactionIngestionService>();
 
 await using var serviceProvider = services.BuildServiceProvider();
 
-// Create the schema on first run — no manual migration step needed.
+// Ensure DB is created on first run.
 using (var scope = serviceProvider.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
     await db.Database.EnsureCreatedAsync();
 }
 
-// Run the ingestion pipeline once and print the summary.
+// Run ingestion once and print results.
 using (var scope = serviceProvider.CreateScope())
 {
     var ingestionService = scope.ServiceProvider.GetRequiredService<TransactionIngestionService>();

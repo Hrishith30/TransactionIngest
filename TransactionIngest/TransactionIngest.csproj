@@ -19,7 +19,7 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.4" />
   </ItemGroup>
 
-  <!-- Copy config and mock data files to the build output directory -->
+  <!-- Copy config and mock files to output -->
   <ItemGroup>
     <None Update="appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

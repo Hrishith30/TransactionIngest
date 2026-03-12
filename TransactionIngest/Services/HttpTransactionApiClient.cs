@@ -4,11 +4,7 @@ using Microsoft.Extensions.Logging;
 
 namespace TransactionIngest.Services;
 
-/// <summary>
-/// Live HTTP implementation that calls the real payments gateway API.
-/// Switch to this by setting MockFeed:Enabled = false in appsettings.json.
-/// Requires Api:BaseUrl and Api:SnapshotPath to be configured.
-/// </summary>
+/// <summary>HTTP client for the real payments API.</summary>
 public sealed class HttpTransactionApiClient : ITransactionApiClient
 {
     private readonly HttpClient _httpClient;
@@ -34,8 +30,7 @@ public sealed class HttpTransactionApiClient : ITransactionApiClient
     {
         _logger.LogInformation("GET {Url}", _snapshotUrl);
 
-        // GetFromJsonAsync throws HttpRequestException on non-2xx responses,
-        // which will bubble up and roll back the DB transaction.
+        // Throws on error, which triggers a rollback.
         var transactions = await _httpClient.GetFromJsonAsync<List<TransactionDto>>(_snapshotUrl, ct);
 
         _logger.LogInformation("Received {Count} transactions from API.", transactions?.Count ?? 0);

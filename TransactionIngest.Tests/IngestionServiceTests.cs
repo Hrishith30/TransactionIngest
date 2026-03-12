@@ -7,11 +7,7 @@ using TransactionIngest.Services;
 
 namespace TransactionIngest.Tests;
 
-/// <summary>
-/// Tests for <see cref="TransactionIngestionService"/>.
-/// Each test runs against its own isolated SQLite database (GUID-named) so they
-/// are independent and can run in parallel. Databases are cleaned up after each test.
-/// </summary>
+/// <summary>Tests for the ingestion service using ephemeral SQLite databases.</summary>
 public sealed class IngestionServiceTests : IAsyncDisposable
 {
     // ── Per-test state ────────────────────────────────────────────────────
@@ -19,13 +15,11 @@ public sealed class IngestionServiceTests : IAsyncDisposable
     private readonly AppDbContext _db;
     private readonly IConfiguration _config;
 
-    // Fixed timestamp used in all test DTOs — prevents spurious TransactionTime diffs
-    // between consecutive runs and keeps idempotency/update tests reliable.
-    // Adjusted dynamically to stay within the 24-hour ingestion window without millisecond precision issues.
+    // Stable timestamp to avoid jitter in tests.
     private static readonly DateTime FixedTransactionTime =
         new DateTime(DateTime.UtcNow.Year, DateTime.UtcNow.Month, DateTime.UtcNow.Day, DateTime.UtcNow.Hour, 0, 0, DateTimeKind.Utc).AddHours(-12);
 
-    // Each test instance gets its own DB file — no shared state across tests.
+    // New DB file for every test instance.
     public IngestionServiceTests()
     {
         _dbPath = Path.Combine(Path.GetTempPath(), $"tx_test_{Guid.NewGuid():N}.db");
@@ -45,7 +39,7 @@ public sealed class IngestionServiceTests : IAsyncDisposable
             .Build();
     }
 
-    // Delete the test DB file after each test so temp files don't accumulate.
+    // Clean up DB files.
     public async ValueTask DisposeAsync()
     {
         await _db.DisposeAsync();
@@ -55,12 +49,11 @@ public sealed class IngestionServiceTests : IAsyncDisposable
 
     // ── Helper factory ────────────────────────────────────────────────────
 
-    // Wires up the service under test with the test DB and a given API stub.
+    // System under test factory.
     private TransactionIngestionService CreateService(ITransactionApiClient apiClient) =>
         new(_db, apiClient, _config, NullLogger<TransactionIngestionService>.Instance);
 
-    // Builds a TransactionDto with sensible defaults. Use the configure delegate to
-    // override specific fields per test without repeating the boilerplate.
+    // DTO builder with defaults.
     private static TransactionDto MakeDto(
         string transactionId,
         Action<TransactionDto>? configure = null)
@@ -80,7 +73,7 @@ public sealed class IngestionServiceTests : IAsyncDisposable
 
     // ── Tests ─────────────────────────────────────────────────────────────
 
-    /// <summary>New transactions should be inserted as Active with a single Insert audit row each.</summary>
+    /// <summary>New transactions should be saved with an Insert audit row.</summary>
     [Fact]
     public async Task NewTransactions_AreInserted_WithInsertAuditEntry()
     {
@@ -112,7 +105,7 @@ public sealed class IngestionServiceTests : IAsyncDisposable
         Assert.All(auditRows, row => Assert.Equal(ChangeType.Insert, row.ChangeType));
     }
 
-    /// <summary>When a tracked field changes between runs, the record updates and one per-field audit row is written.</summary>
+    /// <summary>Field changes should trigger updates and audit logs.</summary>
     [Fact]
     public async Task UpdatedField_IsDetected_AndAuditRowRecorded()
     {
@@ -151,7 +144,7 @@ public sealed class IngestionServiceTests : IAsyncDisposable
         Assert.Equal("99.99",    updateLogs[0].NewValue);
     }
 
-    /// <summary>An Active transaction within the window that disappears from the snapshot should be Revoked.</summary>
+    /// <summary>Active records missing from the feed should be Revoked.</summary>
     [Fact]
     public async Task AbsentTransaction_WithinWindow_IsRevoked()
     {
@@ -181,7 +174,7 @@ public sealed class IngestionServiceTests : IAsyncDisposable
         Assert.Single(revokedLog);
     }
 
-    /// <summary>Running twice with the same snapshot should produce no additional audit rows.</summary>
+    /// <summary>Idempotency check: no new logs if nothing changed.</summary>
     [Fact]
     public async Task IdempotentRun_WithSameSnapshot_ProducesNoNewAuditRows()
     {
@@ -209,7 +202,7 @@ public sealed class IngestionServiceTests : IAsyncDisposable
         Assert.Equal(auditCountAfterFirstRun, auditCountAfterSecondRun);
     }
 
-    /// <summary>Finalized records are sealed — a re-delivered snapshot with different values should not change them.</summary>
+    /// <summary>Finalized records cannot be modified.</summary>
     [Fact]
     public async Task FinalizedTransaction_IsNotModified_OnSubsequentRun()
     {
@@ -253,7 +246,7 @@ public sealed class IngestionServiceTests : IAsyncDisposable
         Assert.Equal(TransactionStatus.Finalized, dbTx.Status);
     }
 
-    /// <summary>An Active record whose TransactionTime is past the 24-hour window should be automatically Finalized.</summary>
+    /// <summary>Old active records should be finalized automatically.</summary>
     [Fact]
     public async Task ActiveTransaction_OlderThan24Hours_IsFinalized()
     {
@@ -289,7 +282,7 @@ public sealed class IngestionServiceTests : IAsyncDisposable
         Assert.Single(finalizedLog);
     }
 
-    // Simple stub that returns a fixed list — keeps tests fast and deterministic.
+    // Simple API stub for testing.
     private sealed class StubApiClient : ITransactionApiClient
     {
         private readonly IReadOnlyList<TransactionDto> _data;

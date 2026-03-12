@@ -174,7 +174,7 @@ One row per event. For `Update` events, one row per changed field.
 
 ## Assumptions
 
-- `TransactionId` is required to be an `int` by the data model specification, but the upstream JSON payload provides it as a string (e.g. `"T-1001"`). The application seamlessly parses and strips non-numeric characters on ingestion to enforce the strong database integer contract.
+- `TransactionId` comes from the API as a string (like `"T-1001"`), but we parse it into an `int` to match our database schema.
 - Card numbers are never stored. Only the SHA-256 hash (for change detection) and last 4 digits (for display) are persisted — in line with PCI-DSS recommendations.
 - `EnsureCreated()` is used instead of EF migrations for simplicity. Changing the schema requires deleting `transactions.db` and letting it recreate on the next run.
 - The 24-hour window is configurable via `Ingestion:WindowHours` in `appsettings.json`.
@@ -185,8 +185,8 @@ One row per event. For `Update` events, one row per changed field.
 1. **Estimated vs Actual Hours:**
    - **Estimated Hours:** 3 hours
    - **Actual Hours:** 4 hours
-   - **Explanation:** The extra time was spent primarily on refining the idempotency logic to ensure exactly-once processing behavior even under failure conditions, as well as refining the entity state transitions.
+    - **Explanation:** Spent extra time making sure the idempotency logic and state transitions (Like Revoked vs Finalized) were solid.
 
 2. **Other Comments:**
-   - **Problems & Solutions:** The main challenge was correctly identifying when to transition a record to `Revoked` versus `Finalized`. I solved this by treating the ingestion window firmly – anything outside the 24-hour window from the snapshot run time is Finalized, regardless of whether it was active or revoked previously. The transaction state machine was built explicitly around this rule.
-   - **Highlights:** I'm particularly happy with the clean separation of concerns in the `IngestionService` and the comprehensive xUnit test suite covering the core state transitions and edge cases. A custom parser cleanly adapts upstream string IDs (`"T-1001"`) strictly back to database integers to flawlessly honor all prompt data-model constraints. PCI-DSS compliance is strictly adhered to regarding card numbers by storing only an irreversible SHA-256 hash alongside the last four digits. Idempotency is fully guaranteed via transaction wrapping.
+    - **Problems & Solutions:** Deciding when to move a record to `Revoked` vs `Finalized` was tricky. I settled on a firm 24-hour window: anything older than that gets finalized regardless of its previous state.
+    - **Highlights:** The `IngestionService` is well-separated, and the xUnit tests cover all the main state changes. Card numbers are handled safely using SHA-256 hashes and only storing the last 4 digits. Everything runs inside a DB transaction for reliability.

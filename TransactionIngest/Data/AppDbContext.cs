@@ -3,17 +3,13 @@ using TransactionIngest.Models;
 
 namespace TransactionIngest.Data;
 
-/// <summary>
-/// EF Core DbContext for the transaction ingestion database.
-/// Uses Fluent API to configure column types, constraints, and indexes
-/// that can't be expressed cleanly with data annotations alone.
-/// </summary>
+/// <summary>Database context for transactions and audit logs.</summary>
 public sealed class AppDbContext : DbContext
 {
     /// <summary>The main transactions table.</summary>
     public DbSet<Transaction> Transactions => Set<Transaction>();
 
-    /// <summary>Append-only audit log — one row per field change or lifecycle event.</summary>
+    /// <summary>Audit history for all transaction changes.</summary>
     public DbSet<TransactionAuditLog> AuditLogs => Set<TransactionAuditLog>();
 
     public AppDbContext(DbContextOptions<AppDbContext> options) : base(options) { }
@@ -27,8 +23,7 @@ public sealed class AppDbContext : DbContext
         {
             entity.HasKey(t => t.Id);
 
-            // Unique constraint on the upstream key — prevents duplicate rows
-            // and makes upsert lookups fast.
+            // Prevent duplicates and keep lookups fast using the upstream ID.
             entity.HasIndex(t => t.TransactionId)
                   .IsUnique()
                   .HasDatabaseName("IX_Transactions_TransactionId");
@@ -42,7 +37,7 @@ public sealed class AppDbContext : DbContext
             // Explicit precision for money — matches the spec.
             entity.Property(t => t.Amount).HasColumnType("decimal(18,2)");
 
-            // Store status as a string ("Active" not "0") for readability in the DB.
+            // Store status as a string for better readability in the DB.
             entity.Property(t => t.Status).HasConversion<string>();
         });
 
@@ -56,10 +51,10 @@ public sealed class AppDbContext : DbContext
             entity.Property(al => al.OldValue).HasMaxLength(256);
             entity.Property(al => al.NewValue).HasMaxLength(256);
 
-            // Store change type as a string ("Insert" not "0") for readability.
+            // Store change type as descriptive strings.
             entity.Property(al => al.ChangeType).HasConversion<string>();
 
-            // Cascade delete keeps audit rows in sync if a transaction is removed.
+            // Clean up logs if a transaction is deleted.
             entity.HasOne(al => al.TransactionRecord)
                   .WithMany(t => t.AuditLogs)
                   .HasForeignKey(al => al.TransactionFk)
